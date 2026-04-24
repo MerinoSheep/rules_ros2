@@ -66,3 +66,13 @@ ros2_cpp_test(
         "@ros2_rclcpp//:rclcpp",
     ],
 )
+
+ros2_cpp_test(
+    name = "version_h_test",
+    size = "small",
+    srcs = ["version_h_test.cc"],
+    deps = [
+        "@ros2_ament_index//:ament_index_cpp",
+        "@ros2_rclcpp//:rclcpp",
+    ],
+)

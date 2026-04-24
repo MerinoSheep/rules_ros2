@@ -1,11 +1,21 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
 exports_files([
     "deps.bzl",
-    "logging_macros.bzl",
     "generate_rclcpp_interface.py",
     "generate_rclcpp_logging_macros.py",
     "generate_rcutils_logging_macros.py",
+    "logging_macros.bzl",
     "rclcpp_interfaces.bzl",
     "repositories.bzl",
     "ros2_repo_mappings.yaml",
     "ros2_repositories_impl.bzl",
+    "version_header.bzl",
+    "version_header.h.in",
 ])
+
+py_binary(
+    name = "version_header_gen",
+    srcs = ["version_header_gen.py"],
+    visibility = ["//visibility:public"],
+)
