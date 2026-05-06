@@ -1,6 +1,9 @@
 """ Defines tests.
 """
 
+load("@bazel_skylib//rules:diff_test.bzl", "diff_test")
+load("@bazel_skylib//rules:write_file.bzl", "write_file")
+load("@com_github_mvukov_rules_ros2//ros2:ament.bzl", "ros2_ament_setup")
 load("@com_github_mvukov_rules_ros2//ros2:cc_defs.bzl", "ros2_cpp_test")
 load(
     "@com_github_mvukov_rules_ros2//ros2:interfaces.bzl",
@@ -65,4 +68,66 @@ ros2_cpp_test(
         "@googletest//:gtest",
         "@ros2_rclcpp//:rclcpp",
     ],
+)
+
+# Regression test for ros2_ament_setup: verify that .msg, .srv, and .action
+# sources from a ros2_interface_library all show up in the rosidl_interfaces
+# resource-index manifest under their respective subfolders. Without this,
+# consumers that look up service/action schemas at runtime via the
+# rosidl_interfaces index (e.g. foxglove_bridge) cannot find them.
+ros2_interface_library(
+    name = "ament_setup_test_interfaces",
+    srcs = [
+        "AmentSetupTest.action",
+        "AmentSetupTest.msg",
+        "AmentSetupTest.srv",
+    ],
+    deps = ["@ros2_rcl_interfaces//:action_msgs"],
+)
+
+ros2_ament_setup(
+    name = "ament_setup_test_setup",
+    testonly = True,
+    idl_deps = [":ament_setup_test_interfaces"],
+    deps = [],
+)
+
+genrule(
+    name = "ament_setup_test_manifest",
+    testonly = True,
+    srcs = [":ament_setup_test_setup"],
+    outs = ["ament_setup_test_manifest.actual.txt"],
+    cmd = """
+        manifest=$$(
+            for f in $(execpaths :ament_setup_test_setup); do
+                case "$$f" in
+                    */rosidl_interfaces/ament_setup_test_interfaces) echo "$$f"; break ;;
+                esac
+            done
+        )
+        if [ -z "$$manifest" ]; then
+            echo "rosidl_interfaces manifest not found in ament setup outputs" >&2
+            exit 1
+        fi
+        sort "$$manifest" > $@
+    """,
+)
+
+write_file(
+    name = "ament_setup_test_manifest_golden",
+    testonly = True,
+    out = "ament_setup_test_manifest.golden.txt",
+    content = [
+        "action/AmentSetupTest.action",
+        "msg/AmentSetupTest.msg",
+        "srv/AmentSetupTest.srv",
+        "",
+    ],
+    newline = "unix",
+)
+
+diff_test(
+    name = "ament_setup_test",
+    file1 = ":ament_setup_test_manifest",
+    file2 = ":ament_setup_test_manifest_golden",
 )
