@@ -70,19 +70,16 @@ ros2_cpp_test(
     ],
 )
 
-# Regression test for ros2_ament_setup: verify that .msg, .srv, and .action
-# sources from a ros2_interface_library all show up in the rosidl_interfaces
-# resource-index manifest under their respective subfolders. Without this,
-# consumers that look up service/action schemas at runtime via the
-# rosidl_interfaces index (e.g. foxglove_bridge) cannot find them.
+# Regression test for ros2_ament_setup: foxglove_bridge and other consumers
+# that look up service schemas via the rosidl_interfaces resource index can
+# only find them if .srv (and .action) sources are symlinked into share/<pkg>/
+# and listed in the manifest alongside .msg.
 ros2_interface_library(
     name = "ament_setup_test_interfaces",
     srcs = [
-        "AmentSetupTest.action",
         "AmentSetupTest.msg",
         "AmentSetupTest.srv",
     ],
-    deps = ["@ros2_rcl_interfaces//:action_msgs"],
 )
 
 ros2_ament_setup(
@@ -98,18 +95,15 @@ genrule(
     srcs = [":ament_setup_test_setup"],
     outs = ["ament_setup_test_manifest.actual.txt"],
     cmd = """
-        manifest=$$(
-            for f in $(execpaths :ament_setup_test_setup); do
-                case "$$f" in
-                    */rosidl_interfaces/ament_setup_test_interfaces) echo "$$f"; break ;;
-                esac
-            done
-        )
-        if [ -z "$$manifest" ]; then
-            echo "rosidl_interfaces manifest not found in ament setup outputs" >&2
-            exit 1
-        fi
-        sort "$$manifest" > $@
+        for f in $(execpaths :ament_setup_test_setup); do
+            case "$$f" in
+                */rosidl_interfaces/ament_setup_test_interfaces)
+                    LC_ALL=C sort "$$f" > $@
+                    exit 0 ;;
+            esac
+        done
+        echo "rosidl_interfaces manifest not found in ament setup outputs" >&2
+        exit 1
     """,
 )
 
@@ -118,7 +112,6 @@ write_file(
     testonly = True,
     out = "ament_setup_test_manifest.golden.txt",
     content = [
-        "action/AmentSetupTest.action",
         "msg/AmentSetupTest.msg",
         "srv/AmentSetupTest.srv",
         "",

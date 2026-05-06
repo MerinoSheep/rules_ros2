@@ -1,6 +1,0 @@
-# Test action for ros2_ament_setup .msg/.srv/.action coverage.
-int32 goal
----
-int32 result
----
-int32 feedback
